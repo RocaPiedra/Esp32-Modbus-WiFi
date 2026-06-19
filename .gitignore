@@ -1,0 +1,6 @@
+.pio
+.vscode
+*.swp
+*~
+include/private_config.h
+data/
