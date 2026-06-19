@@ -1,6 +1,6 @@
 #include "ModbusTCPSlaveWiFi.h"
 
-ModbusTCPSlaveWiFi::ModbusTCPSlaveWiFi(uint16_t port) : ModbusSlave(0), _server(port) {
+ModbusTCPSlaveWiFi::ModbusTCPSlaveWiFi(uint16_t port) : ModbusSlave(0), _server(port), _lastRequestTime(0) {
 }
 
 void ModbusTCPSlaveWiFi::begin() {
@@ -14,6 +14,7 @@ void ModbusTCPSlaveWiFi::update() {
         _currentClient = _server.available();
         if (_currentClient) {
             _next = _adu;
+            _lastRequestTime = millis();
             setState(Receiving);
         }
     }
@@ -60,6 +61,7 @@ bool ModbusTCPSlaveWiFi::receiveRequest() {
 
         _lastRequestTime = millis();
     } else if (millis() - _lastRequestTime > _timeout) {
+        _currentClient.stop();
         setState(Idle);
         return false;
     }
