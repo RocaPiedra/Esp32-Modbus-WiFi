@@ -10,23 +10,21 @@
 #include "EthernetWebServer.h"
 
 int digitalOutputsPins[] = {
-#if defined(PIN_Q0_4)
-  Q0_0, Q0_1, Q0_2, Q0_3, Q0_4,
+#if defined(PIN_Q0_0)
+  Q0_0, Q0_1, Q0_2, Q0_3,
 #endif
 };
 int digitalInputsPins[] = {
-#if defined(PIN_I0_6)
+#if defined(PIN_I0_0)
   I0_0, I0_1, I0_2, I0_3, I0_4, I0_5, I0_6,
 #endif
 };
 int analogOutputsPins[] = {
-#if defined(PIN_Q0_7)
-  A0_5, A0_6, A0_7,
-#endif
+  // 14iosplc_ma has no dedicated analog outputs
 };
 int analogInputsPins[] = {
-#if defined(PIN_I0_12)
-  I0_7, I0_8, I0_9, I0_10, I0_11, I0_12,
+#if defined(PIN_I0_7)
+  I0_7, I0_8,
 #endif
 };
 
