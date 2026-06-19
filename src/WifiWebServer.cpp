@@ -1,11 +1,12 @@
 #include "WifiWebServer.h"
 #include <ESPping.h>
+#include "esp_wifi.h"
 #include "HTMLUI.h"
 #include "ConfigManager.h"
 
 WifiWebServer::WifiWebServer(int port)
     : server(port), mac(nullptr), ip(IPAddress(0,0,0,0)), gateway(IPAddress(0,0,0,0)), subnet(IPAddress(255,255,255,0)), ssid(""), password(""), port(port),
-      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0) {}
+      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0) {}
 
 void WifiWebServer::setNetworkConfig(byte* mac, IPAddress ip, IPAddress gateway, IPAddress subnet, const char* ssid, const char* password) {
     this->mac = mac;
@@ -27,6 +28,11 @@ void WifiWebServer::setModbusPort(uint16_t port) {
 void WifiWebServer::setSensorData(bool* digitalInputs, int numDigitalInputs) {
     this->digitalInputs = digitalInputs;
     this->numDigitalInputs = numDigitalInputs;
+}
+
+void WifiWebServer::setCoilData(bool* digitalOutputs, int numDigitalOutputs) {
+    this->digitalOutputs = digitalOutputs;
+    this->numDigitalOutputs = numDigitalOutputs;
 }
 
 void WifiWebServer::begin(bool verbose) {
@@ -83,11 +89,12 @@ void WifiWebServer::setupRoutes() {
     server.on("/config", HTTP_POST, std::bind(&WifiWebServer::handleConfigPOST, this));
     server.on("/update", HTTP_GET, std::bind(&WifiWebServer::handleUpdateGET, this));
     server.on("/update", HTTP_POST, std::bind(&WifiWebServer::handleUpdatePOST, this), std::bind(&WifiWebServer::handleUpdateUpload, this));
+    server.on("/coil", HTTP_GET, std::bind(&WifiWebServer::handleCoil, this));
 }
 
 void WifiWebServer::handleRoot() {
     String ipStr = configManager ? configManager->ipToString(WiFi.localIP()) : "";
-    String html = createDashboardPage("WiFi", ipStr, modbusPort, digitalInputs, numDigitalInputs);
+    String html = createDashboardPage("WiFi", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
     server.send(200, "text/html", html);
 }
 
@@ -164,4 +171,17 @@ void WifiWebServer::handleUpdateUpload() {
             Update.printError(Serial);
         }
     }
+}
+
+void WifiWebServer::handleCoil() {
+    int idx = server.arg("idx").toInt();
+    int val = server.arg("val").toInt();
+    if (idx >= 0 && idx < numDigitalOutputs && val >= 0 && val <= 1) {
+        digitalOutputs[idx] = (val == 1);
+        if (Serial) {
+            Serial.print("[WEB] Coil Q0_"); Serial.print(idx);
+            Serial.print(" set to "); Serial.println(val ? "ON" : "OFF");
+        }
+    }
+    server.send(200, "text/plain", "OK");
 }

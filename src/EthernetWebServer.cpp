@@ -31,7 +31,7 @@ static String getFormValue(const String& body, const String& key) {
 
 EthernetWebServer::EthernetWebServer(int port)
     : server(port), mac(nullptr), ip(IPAddress(0,0,0,0)), gateway(IPAddress(0,0,0,0)), subnet(IPAddress(255,255,255,0)), port(port),
-      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0) {}
+      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0) {}
 
 void EthernetWebServer::setNetworkConfig(byte* mac, IPAddress ip, IPAddress gateway, IPAddress subnet) {
     this->mac = mac;
@@ -51,6 +51,11 @@ void EthernetWebServer::setModbusPort(uint16_t port) {
 void EthernetWebServer::setSensorData(bool* digitalInputs, int numDigitalInputs) {
     this->digitalInputs = digitalInputs;
     this->numDigitalInputs = numDigitalInputs;
+}
+
+void EthernetWebServer::setCoilData(bool* digitalOutputs, int numDigitalOutputs) {
+    this->digitalOutputs = digitalOutputs;
+    this->numDigitalOutputs = numDigitalOutputs;
 }
 
 void EthernetWebServer::begin(bool verbose) {
@@ -122,7 +127,7 @@ void EthernetWebServer::sendResponse(int code, const String& contentType, const 
 
 void EthernetWebServer::handleRoot() {
     String ipStr = configManager ? configManager->ipToString(Ethernet.localIP()) : "";
-    String html = createDashboardPage("Ethernet", ipStr, modbusPort, digitalInputs, numDigitalInputs);
+    String html = createDashboardPage("Ethernet", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
     sendResponse(200, "text/html", html);
 }
 
@@ -190,6 +195,23 @@ void EthernetWebServer::handleUpdateGET() {
     sendResponse(200, "text/html", html);
 }
 
+void EthernetWebServer::handleCoil(const String& query) {
+    int idx = -1;
+    int val = -1;
+    int i1 = query.indexOf("idx=");
+    int i2 = query.indexOf("val=");
+    if (i1 >= 0) idx = query.substring(i1 + 4).toInt();
+    if (i2 >= 0) val = query.substring(i2 + 4).toInt();
+    if (idx >= 0 && idx < numDigitalOutputs && val >= 0 && val <= 1) {
+        digitalOutputs[idx] = (val == 1);
+        if (Serial) {
+            Serial.print("[WEB] Coil Q0_"); Serial.print(idx);
+            Serial.print(" set to "); Serial.println(val ? "ON" : "OFF");
+        }
+    }
+    sendResponse(200, "text/plain", "OK");
+}
+
 void EthernetWebServer::handleNotFound(const String& url) {
     sendResponse(404, "text/html", "<html><body><h1>404 Not Found</h1><p>" + url + "</p></body></html>");
 }
@@ -246,6 +268,7 @@ void EthernetWebServer::handleClient(bool verbose) {
     else if (method == "GET" && path == "/config") handleConfigGET();
     else if (method == "POST" && path == "/config") handleConfigPOST(body);
     else if (method == "GET" && path == "/update") handleUpdateGET();
+    else if (method == "GET" && path.startsWith("/coil")) handleCoil(path.substring(5));
     else handleNotFound(path);
     
     client.stop();

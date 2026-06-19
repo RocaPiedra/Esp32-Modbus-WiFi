@@ -15,6 +15,7 @@ public:
   void setConfigManager(ConfigManager* cm) override;
   void setModbusPort(uint16_t port) override;
   void setSensorData(bool* digitalInputs, int numDigitalInputs) override;
+  void setCoilData(bool* digitalOutputs, int numDigitalOutputs) override;
 
   void begin(bool verbose = true) override;
   bool connect(bool verbose = true) override;
@@ -35,6 +36,8 @@ private:
   uint16_t modbusPort;
   bool* digitalInputs;
   int numDigitalInputs;
+  bool* digitalOutputs;
+  int numDigitalOutputs;
 
   void setupRoutes();
   void handleRoot();
@@ -43,6 +46,7 @@ private:
   void handleUpdateGET();
   void handleUpdatePOST();
   void handleUpdateUpload();
+  void handleCoil();
 };
 
 #endif

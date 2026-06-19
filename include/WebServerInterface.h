@@ -13,6 +13,7 @@ public:
   virtual void setConfigManager(ConfigManager* cm) = 0;
   virtual void setModbusPort(uint16_t port) = 0;
   virtual void setSensorData(bool* digitalInputs, int numDigitalInputs) = 0;
+  virtual void setCoilData(bool* digitalOutputs, int numDigitalOutputs) = 0;
 };
 
 #endif

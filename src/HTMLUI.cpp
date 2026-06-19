@@ -1,13 +1,16 @@
 #include <Arduino.h>
 #include "HTMLUI.h"
 
-String createDashboardPage(const String& interfaceName, const String& ip, uint16_t modbusPort, bool* digitalInputs, int numDigitalInputs) {
+String createDashboardPage(const String& interfaceName, const String& ip, uint16_t modbusPort, bool* digitalInputs, int numDigitalInputs, bool* digitalOutputs, int numDigitalOutputs) {
   String html = F("<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'><style>"
     "body{font-family:Arial,sans-serif;background:#f4f6f8;margin:0;padding:16px;}"
     "h1{color:#1976d2;} .card{background:#fff;border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}"
     "table{border-collapse:collapse;width:100%;} th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd;}"
     "th{background:#1976d2;color:#fff;} .on{color:#43a047;font-weight:bold;} .off{color:#e53935;font-weight:bold;}"
-    "a{display:inline-block;margin-top:8px;padding:10px 16px;background:#1976d2;color:#fff;text-decoration:none;border-radius:4px;}"
+    "a{display:inline-block;margin-top:8px;margin-right:8px;padding:10px 16px;background:#1976d2;color:#fff;text-decoration:none;border-radius:4px;}"
+    "button{border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-weight:bold;color:#fff;}"
+    ".btn-on{background:#e53935;} .btn-off{background:#43a047;}"
+    ".row{display:flex;align-items:center;justify-content:space-between;margin:8px 0;}"
     "</style></head><body>");
   html += "<h1>InputReaderModbus</h1>";
   html += "<div class='card'><h2>Status</h2>";
@@ -15,15 +18,37 @@ String createDashboardPage(const String& interfaceName, const String& ip, uint16
   html += "<p><b>IP:</b> " + ip + "</p>";
   html += "<p><b>Modbus Port:</b> " + String(modbusPort) + "</p>";
   html += "</div>";
-  html += "<div class='card'><h2>Digital Inputs</h2><table><tr><th>Pin</th><th>State</th></tr>";
+
+  html += "<div class='card'><h2>Digital Inputs (Sensors)</h2><table><tr><th>Pin</th><th>State</th></tr>";
   for (int i = 0; i < numDigitalInputs; i++) {
     String stateClass = digitalInputs[i] ? "on" : "off";
     String stateText = digitalInputs[i] ? "ON" : "OFF";
     html += "<tr><td>I0_" + String(i) + "</td><td class='" + stateClass + "'>" + stateText + "</td></tr>";
   }
   html += "</table></div>";
-  html += "<div class='card'><a href='/config'>Configuration</a> <a href='/update'>OTA Update</a></div>";
-  html += "</body></html>";
+
+  if (numDigitalOutputs > 0) {
+    html += "<div class='card'><h2>Digital Outputs (Coils)</h2>";
+    for (int i = 0; i < numDigitalOutputs; i++) {
+      bool isOn = digitalOutputs[i];
+      String btnClass = isOn ? "btn-on" : "btn-off";
+      String btnText = isOn ? "Turn OFF" : "Turn ON";
+      int targetVal = isOn ? 0 : 1;
+      html += "<div class='row'><span>Q0_" + String(i) + " <b class='" + (isOn ? "on" : "off") + "'>" + (isOn ? "ON" : "OFF") + "</b></span>";
+      html += "<button class='" + btnClass + "' onclick=\"setCoil(" + String(i) + "," + String(targetVal) + ")\">" + btnText + "</button></div>";
+    }
+    html += "</div>";
+  }
+
+  html += "<div class='card'><a href='/config'>Configuration</a><a href='/update'>OTA Update</a></div>";
+
+  html += F("<script>"
+    "async function setCoil(idx,val){"
+    "await fetch('/coil?idx='+idx+'&val='+val);"
+    "location.reload();"
+    "}"
+    "setInterval(()=>location.reload(),2000);"
+    "</script></body></html>");
   return html;
 }
 

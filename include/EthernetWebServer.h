@@ -13,6 +13,7 @@ public:
     void setConfigManager(ConfigManager* cm) override;
     void setModbusPort(uint16_t port) override;
     void setSensorData(bool* digitalInputs, int numDigitalInputs) override;
+    void setCoilData(bool* digitalOutputs, int numDigitalOutputs) override;
 
     void begin(bool verbose = true) override;
     bool connect(bool verbose = true) override;
@@ -33,6 +34,8 @@ private:
     uint16_t modbusPort;
     bool* digitalInputs;
     int numDigitalInputs;
+    bool* digitalOutputs;
+    int numDigitalOutputs;
 
     void configureEthernetMAC();
     void sendResponse(int code, const String& contentType, const String& body);
@@ -40,6 +43,7 @@ private:
     void handleConfigGET();
     void handleConfigPOST(const String& body);
     void handleUpdateGET();
+    void handleCoil(const String& query);
     void handleNotFound(const String& url);
 };
 
