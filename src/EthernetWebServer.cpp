@@ -31,7 +31,7 @@ static String getFormValue(const String& body, const String& key) {
 
 EthernetWebServer::EthernetWebServer(int port)
     : server(port), mac(nullptr), ip(IPAddress(0,0,0,0)), gateway(IPAddress(0,0,0,0)), subnet(IPAddress(255,255,255,0)), port(port),
-      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0) {}
+      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0), boardName("Unknown") {}
 
 void EthernetWebServer::setNetworkConfig(byte* mac, IPAddress ip, IPAddress gateway, IPAddress subnet) {
     this->mac = mac;
@@ -56,6 +56,10 @@ void EthernetWebServer::setSensorData(bool* digitalInputs, int numDigitalInputs)
 void EthernetWebServer::setCoilData(bool* digitalOutputs, int numDigitalOutputs) {
     this->digitalOutputs = digitalOutputs;
     this->numDigitalOutputs = numDigitalOutputs;
+}
+
+void EthernetWebServer::setBoardName(const char* name) {
+    this->boardName = name;
 }
 
 void EthernetWebServer::begin(bool verbose) {
@@ -127,7 +131,7 @@ void EthernetWebServer::sendResponse(int code, const String& contentType, const 
 
 void EthernetWebServer::handleRoot() {
     String ipStr = configManager ? configManager->ipToString(Ethernet.localIP()) : "";
-    String html = createDashboardPage("Ethernet", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
+    String html = createDashboardPage(boardName, "Ethernet", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
     sendResponse(200, "text/html", html);
 }
 

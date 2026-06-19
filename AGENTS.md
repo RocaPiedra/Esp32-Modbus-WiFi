@@ -1,7 +1,8 @@
 # AGENTS.md — InputReaderModbus
 
 ## Project Type & Stack
-- **PlatformIO** Arduino project for an Industrial Shields ESP32 PLC (`14iosplc_ma`).
+- **PlatformIO** Arduino project for Industrial Shields ESP32 PLCs.
+- **Supported boards**: `14iosplc_ma` and `esp32plc_21` (auto-detected at compile time via board macros).
 - Framework: `arduino` via a custom Industrial Shields ESP32 platform/package.
 - Language: C++ (Arduino `.ino` + `.cpp`/`.h`).
 
@@ -25,6 +26,7 @@
 ## Key Code Conventions & Constraints
 - Digital inputs use Industrial Shields pin aliases: `I0_0`, `I0_1`, etc.
 - Only **2 sensors** are physically wired (`I0_0`, `I0_1`), but the Modbus register mapping must be generic to support future expansion.
+- **Board auto-detection**: The firmware uses compile-time macros (`ESP32PLC` vs `PLC14IOS`) to set the correct pin arrays and board name automatically. Change the `board` value in `platformio.ini` to switch targets.
 
 ## Dependencies (`platformio.ini`)
 - `https://github.com/Industrial-Shields/arduino-Modbus.git`

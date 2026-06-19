@@ -9,24 +9,23 @@
 #include "WifiWebServer.h"
 #include "EthernetWebServer.h"
 
-int digitalOutputsPins[] = {
-#if defined(PIN_Q0_0)
-  Q0_0, Q0_1, Q0_2, Q0_3,
+#if defined(ESP32PLC)
+  // ESP32 PLC 21 IO+
+  const char* BOARD_NAME = "ESP32 PLC 21 IO+";
+  int digitalOutputsPins[] = { Q0_0, Q0_1, Q0_2, Q0_3, Q0_4, Q0_5, Q0_6, Q0_7 };
+  int digitalInputsPins[]  = { I0_0, I0_1, I0_2, I0_3, I0_4, I0_5, I0_6, I0_7, I0_8, I0_9, I0_10, I0_11, I0_12 };
+  int analogOutputsPins[]  = { A0_5, A0_6, A0_7 };
+  int analogInputsPins[]   = { I0_7, I0_8, I0_9, I0_10, I0_11, I0_12 };
+#elif defined(PLC14IOS)
+  // ESP32 PLC 14 (4-20 mA)
+  const char* BOARD_NAME = "ESP32 PLC 14 (4-20 mA)";
+  int digitalOutputsPins[] = { Q0_0, Q0_1, Q0_2, Q0_3 };
+  int digitalInputsPins[]  = { I0_0, I0_1, I0_2, I0_3, I0_4, I0_5, I0_6, I0_7, I0_8 };
+  int analogOutputsPins[]  = {};
+  int analogInputsPins[]   = { I0_7, I0_8 };
+#else
+  #error "Unsupported board. Please use esp32plc_21 or 14iosplc_ma."
 #endif
-};
-int digitalInputsPins[] = {
-#if defined(PIN_I0_0)
-  I0_0, I0_1, I0_2, I0_3, I0_4, I0_5, I0_6,
-#endif
-};
-int analogOutputsPins[] = {
-  // 14iosplc_ma has no dedicated analog outputs
-};
-int analogInputsPins[] = {
-#if defined(PIN_I0_7)
-  I0_7, I0_8,
-#endif
-};
 
 #define numDigitalOutputs int(sizeof(digitalOutputsPins) / sizeof(int))
 #define numDigitalInputs int(sizeof(digitalInputsPins) / sizeof(int))
@@ -72,6 +71,8 @@ void setup() {
   Serial.println("\n\n========================================");
   Serial.println("  InputReaderModbus - BOOT START");
   Serial.println("========================================");
+  Serial.print("[INIT] Board: ");
+  Serial.println(BOARD_NAME);
 
   Serial.println("[INIT] Starting ConfigManager...");
   configManager.begin();
@@ -120,12 +121,14 @@ void setup() {
   ethWebServer.setModbusPort(config.modbus_port);
   ethWebServer.setSensorData(digitalInputs, numDigitalInputs);
   ethWebServer.setCoilData(digitalOutputs, numDigitalOutputs);
+  ethWebServer.setBoardName(BOARD_NAME);
   ethWebServer.setNetworkConfig(config.eth_mac, config.eth_ip, config.eth_gateway, config.eth_subnet);
 
   wifiWebServer.setConfigManager(&configManager);
   wifiWebServer.setModbusPort(config.modbus_port);
   wifiWebServer.setSensorData(digitalInputs, numDigitalInputs);
   wifiWebServer.setCoilData(digitalOutputs, numDigitalOutputs);
+  wifiWebServer.setBoardName(BOARD_NAME);
   wifiWebServer.setNetworkConfig(config.wifi_mac, config.wifi_ip, config.wifi_gateway, config.wifi_subnet, config.wifi_ssid.c_str(), config.wifi_password.c_str());
 
   Serial.println("[INIT] Configuring WiFi stack...");

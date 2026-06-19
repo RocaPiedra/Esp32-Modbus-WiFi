@@ -14,6 +14,7 @@ public:
   virtual void setModbusPort(uint16_t port) = 0;
   virtual void setSensorData(bool* digitalInputs, int numDigitalInputs) = 0;
   virtual void setCoilData(bool* digitalOutputs, int numDigitalOutputs) = 0;
+  virtual void setBoardName(const char* name) = 0;
 };
 
 #endif

@@ -6,7 +6,7 @@
 
 WifiWebServer::WifiWebServer(int port)
     : server(port), mac(nullptr), ip(IPAddress(0,0,0,0)), gateway(IPAddress(0,0,0,0)), subnet(IPAddress(255,255,255,0)), ssid(""), password(""), port(port),
-      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0) {}
+      configManager(nullptr), modbusPort(502), digitalInputs(nullptr), numDigitalInputs(0), digitalOutputs(nullptr), numDigitalOutputs(0), boardName("Unknown") {}
 
 void WifiWebServer::setNetworkConfig(byte* mac, IPAddress ip, IPAddress gateway, IPAddress subnet, const char* ssid, const char* password) {
     this->mac = mac;
@@ -33,6 +33,10 @@ void WifiWebServer::setSensorData(bool* digitalInputs, int numDigitalInputs) {
 void WifiWebServer::setCoilData(bool* digitalOutputs, int numDigitalOutputs) {
     this->digitalOutputs = digitalOutputs;
     this->numDigitalOutputs = numDigitalOutputs;
+}
+
+void WifiWebServer::setBoardName(const char* name) {
+    this->boardName = name;
 }
 
 void WifiWebServer::begin(bool verbose) {
@@ -94,7 +98,7 @@ void WifiWebServer::setupRoutes() {
 
 void WifiWebServer::handleRoot() {
     String ipStr = configManager ? configManager->ipToString(WiFi.localIP()) : "";
-    String html = createDashboardPage("WiFi", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
+    String html = createDashboardPage(boardName, "WiFi", ipStr, modbusPort, digitalInputs, numDigitalInputs, digitalOutputs, numDigitalOutputs);
     server.send(200, "text/html", html);
 }
 

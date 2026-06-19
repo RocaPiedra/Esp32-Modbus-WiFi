@@ -14,6 +14,7 @@ public:
     void setModbusPort(uint16_t port) override;
     void setSensorData(bool* digitalInputs, int numDigitalInputs) override;
     void setCoilData(bool* digitalOutputs, int numDigitalOutputs) override;
+    void setBoardName(const char* name) override;
 
     void begin(bool verbose = true) override;
     bool connect(bool verbose = true) override;
@@ -36,6 +37,7 @@ private:
     int numDigitalInputs;
     bool* digitalOutputs;
     int numDigitalOutputs;
+    const char* boardName;
 
     void configureEthernetMAC();
     void sendResponse(int code, const String& contentType, const String& body);

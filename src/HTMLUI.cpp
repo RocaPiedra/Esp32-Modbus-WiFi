@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "HTMLUI.h"
 
-String createDashboardPage(const String& interfaceName, const String& ip, uint16_t modbusPort, bool* digitalInputs, int numDigitalInputs, bool* digitalOutputs, int numDigitalOutputs) {
+String createDashboardPage(const String& boardName, const String& interfaceName, const String& ip, uint16_t modbusPort, bool* digitalInputs, int numDigitalInputs, bool* digitalOutputs, int numDigitalOutputs) {
   String html = F(
     "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
     "<title>InputReaderModbus</title>"
@@ -36,7 +36,7 @@ String createDashboardPage(const String& interfaceName, const String& ip, uint16
     "</style></head><body>"
   );
 
-  html += "<header><h1>InputReaderModbus</h1><span class='badge'>" + interfaceName + "</span></header>";
+  html += "<header><h1>InputReaderModbus</h1><div style='display:flex;gap:8px;'><span class='badge'>" + boardName + "</span><span class='badge'>" + interfaceName + "</span></div></header>";
 
   html += "<div class='status-line'>";
   html += "<span>IP: " + ip + "</span>";
