@@ -51,6 +51,10 @@ ModbusSlave* activeModbus = nullptr;
 
 bool useEthernet = true;
 
+void printConfigDebug();
+void setup();
+void loop();
+
 void printConfigDebug() {
   Serial.println("--- Loaded Configuration ---");
   Serial.print("Ethernet IP: "); Serial.println(configManager.ipToString(config.eth_ip));
@@ -242,4 +246,7 @@ void loop() {
     }
     activeWebServer->handleClient();
   }
+
+  // Small delay to let the network stack drain buffers and avoid tight-loop issues.
+  delay(1);
 }

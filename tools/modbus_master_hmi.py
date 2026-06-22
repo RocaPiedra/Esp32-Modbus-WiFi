@@ -125,7 +125,7 @@ def is_socket_error(e):
 def poll_plc():
     global client
     while True:
-        time.sleep(0.2)
+        time.sleep(0.5)
         with client_lock:
             c = client
             if c is None:
@@ -448,7 +448,7 @@ HTML_PAGE = """
             }
         }
 
-        setInterval(fetchData, 250);
+        setInterval(fetchData, 500);
         loadInterfaces();
         fetchData();
     </script>

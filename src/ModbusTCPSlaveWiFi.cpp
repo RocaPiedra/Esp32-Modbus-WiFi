@@ -168,10 +168,10 @@ bool ModbusTCPSlaveWiFi::sendResponse() {
         Serial.printf("[MBWIFI] write() returned %u (expected %u)\n", (unsigned)written, (unsigned)tlen);
     }
     if (written == tlen) {
-        _currentClient.flush();
-        if (Serial) {
-            Serial.println("[MBWIFI] flush() completed");
-        }
+        // TCP_NODELAY is already enabled; do not call flush() because on
+        // ESP32 it can return EAGAIN when the master sends requests faster
+        // than the stack can drain the send buffer.
+        yield();
     }
     return written == tlen;
 }
