@@ -1,0 +1,5 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "input-reader-modbus",
+  "instructions": ["AGENTS.md", "docs/plan.md"]
+}
