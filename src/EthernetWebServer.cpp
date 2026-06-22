@@ -121,9 +121,11 @@ void EthernetWebServer::configureEthernetMAC() {
 }
 
 static void writeAll(EthernetClient& client, const uint8_t* data, size_t len) {
+    const size_t MAX_CHUNK = 512;
     size_t sent = 0;
     while (sent < len && client.connected()) {
-        size_t chunk = client.write(data + sent, len - sent);
+        size_t toSend = min(len - sent, MAX_CHUNK);
+        size_t chunk = client.write(data + sent, toSend);
         if (chunk == 0) {
             delay(1);
             continue;
