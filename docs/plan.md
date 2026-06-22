@@ -10,41 +10,41 @@ Migrate the current HTTP-based sensor reader to a **Modbus TCP Slave** with dual
 ---
 
 ## Phase 1: Dependencies & Build (`platformio.ini`)
-- [ ] Add `https://github.com/Industrial-Shields/arduino-Modbus.git` to `lib_deps`.
-- [ ] Remove `EthernetWebServer` from `lib_deps` (no longer needed as primary protocol).
-- [ ] Keep `dvarrel/ESPping@^1.0.5` for connectivity checks.
-- [ ] Keep `lib_ignore = QNEthernet` and board definitions.
-- [ ] Ensure `framework = arduino` and `monitor_speed = 115200` remain.
+- [x] Add `https://github.com/Industrial-Shields/arduino-Modbus.git` to `lib_deps`.
+- [x] Remove `EthernetWebServer` from `lib_deps` (no longer needed as primary protocol).
+- [x] Keep `dvarrel/ESPping@^1.0.5` for connectivity checks.
+- [x] Keep `lib_ignore = QNEthernet` and board definitions.
+- [x] Ensure `framework = arduino` and `monitor_speed = 115200` remain.
 
 **Verification:** `pio run` compiles without errors.
 
 ---
 
 ## Phase 2: Configuration Storage (No Hardcoded Secrets)
-- [ ] Create `ConfigManager` (`include/ConfigManager.h`, `src/ConfigManager.cpp`).
-- [ ] Use ESP32 `Preferences` (NVS) to persist at runtime:
+- [x] Create `ConfigManager` (`include/ConfigManager.h`, `src/ConfigManager.cpp`).
+- [x] Use ESP32 `Preferences` (NVS) to persist at runtime:
   - Ethernet: IP, gateway, subnet, MAC
   - WiFi: IP, gateway, subnet, MAC, SSID, password
   - Modbus: port (default 502), device hostname
-- [ ] On first boot (NVS empty), load from a **gitignored** `config_defaults.json` on LittleFS/SPIFFS, or simply use safe blank defaults and require user configuration via the web UI.
-- [ ] **Critical:** Remove all hardcoded IPs, MACs, SSID, and password from `src/` and `include/`.
-- [ ] Provide a web form at `/config` to read/write these values.
+- [x] On first boot (NVS empty), load from a **gitignored** `config_defaults.json` on LittleFS/SPIFFS, or simply use safe blank defaults and require user configuration via the web UI.
+- [x] **Critical:** Remove all hardcoded IPs, MACs, SSID, and password from `src/` and `include/`.
+- [x] Provide a web form at `/config` to read/write these values.
 
 **Verification:** After flashing, the device boots without hardcoded network values and exposes `/config`.
 
 ---
 
 ## Phase 3: Modbus TCP Core (Dual Network)
-- [ ] Define full register arrays as per the sample (`sample/ModbusTCPSlave.ino`):
+- [x] Define full register arrays as per the sample (`sample/ModbusTCPSlave.ino`):
   - `digitalOutputsPins[]`, `digitalInputsPins[]`
   - `analogOutputsPins[]`, `analogInputsPins[]`
   - Corresponding state arrays: `digitalOutputs[]`, `digitalInputs[]`, `analogOutputs[]`, `analogInputs[]`
-- [ ] For **now**, only `I0_0` and `I0_1` are physically wired, but the mapping must be generic.
-- [ ] **Sensor logic:** PNP — use `digitalRead(pin)` directly (no inversion).
-- [ ] Create `ModbusTCPSlaveWiFi` (`include/ModbusTCPSlaveWiFi.h`, `src/ModbusTCPSlaveWiFi.cpp`):
+- [x] For **now**, only `I0_0` and `I0_1` are physically wired, but the mapping must be generic.
+- [x] **Sensor logic:** PNP — use `digitalRead(pin)` directly (no inversion).
+- [x] Create `ModbusTCPSlaveWiFi` (`include/ModbusTCPSlaveWiFi.h`, `src/ModbusTCPSlaveWiFi.cpp`):
   - Replicates `ModbusTCPSlave` logic using `WiFiServer`/`WiFiClient`.
   - Inherits from the same `ModbusSlave` base so both slaves share register arrays.
-- [ ] In `InputReaderModbus.ino`:
+- [x] In `InputReaderModbus.ino`:
   - Instantiate `ModbusTCPSlave modbusEth(port)` and `ModbusTCPSlaveWiFi modbusWifi(port)`.
   - Point both to the same arrays via `setDiscreteInputs()`, `setCoils()`, etc.
   - Boot sequence: try Ethernet first → fallback to WiFi.
@@ -59,9 +59,9 @@ Migrate the current HTTP-based sensor reader to a **Modbus TCP Slave** with dual
 ---
 
 ## Phase 4: Web Interface (Dashboard + Config)
-- [ ] Refactor `WebServerInterface`, `EthernetWebServer`, `WifiWebServer`.
-- [ ] Remove old sensor JSON endpoints (`/sensor/0`, `/sensores`, etc.) — Modbus replaces the data API.
-- [ ] New routes (on both Ethernet and WiFi servers):
+- [x] Refactor `WebServerInterface`, `EthernetWebServer`, `WifiWebServer`.
+- [x] Remove old sensor JSON endpoints (`/sensor/0`, `/sensores`, etc.) — Modbus replaces the data API.
+- [x] New routes (on both Ethernet and WiFi servers):
   - `/` — Status dashboard HTML:
     - Active network interface
     - Current IP address
@@ -69,38 +69,38 @@ Migrate the current HTTP-based sensor reader to a **Modbus TCP Slave** with dual
     - Modbus status (port, registers mapped)
   - `/config` — Form to edit NVS network settings (IP, MAC, SSID, password, etc.).
   - `/update` — OTA firmware upload page.
-- [ ] Update `HTMLUI.cpp` to generate the new dashboard, config form, and OTA page.
+- [x] Update `HTMLUI.cpp` to generate the new dashboard, config form, and OTA page.
 
 **Verification:** Browser access to either IP shows the dashboard; `/config` persists changes across reboots.
 
 ---
 
 ## Phase 5: OTA Updates
-- [ ] Integrate `Update.h` into the web server handlers.
-- [ ] `/update` GET serves an upload form (reusing the UI from `lib/OTA_ESP32.txt`).
-- [ ] `/update` POST receives the firmware `.bin` and flashes it via `Update.write()`.
-- [ ] Optional: add `ESPmDNS.h` to advertise `http://<hostname>.local`.
+- [x] Integrate `Update.h` into the web server handlers.
+- [x] `/update` GET serves an upload form (reusing the UI from `lib/OTA_ESP32.txt`).
+- [x] `/update` POST receives the firmware `.bin` and flashes it via `Update.write()`.
+- [x] Optional: add `ESPmDNS.h` to advertise `http://<hostname>.local`.
 
 **Verification:** Uploading a `.bin` via the web interface updates the firmware and the device reboots.
 
 ---
 
 ## Phase 6: Security & Privacy for Public Repo
-- [ ] Ensure no secrets exist in committed source.
-- [ ] Add `.gitignore` rules for any local config files (e.g., `data/config.json`, build artifacts).
+- [x] Ensure no secrets exist in committed source.
+- [x] Add `.gitignore` rules for any local config files (e.g., `data/config.json`, build artifacts).
 - [ ] Document in `docs/SECURITY.md` that all sensitive config is runtime-only via NVS or the web UI.
-- [ ] If a default config file is used for development, keep it out of the repo (add to `.gitignore`).
+- [x] If a default config file is used for development, keep it out of the repo (add to `.gitignore`).
 
 **Verification:** `grep -r "10\.92\.\|ssid\|password\|0xAA, 0xBB" src/ include/` returns no committed secrets.
 
 ---
 
 ## Phase 7: Cleanup
-- [ ] Remove `lib/OTA_ESP32.txt` if fully superseded.
-- [ ] Remove `lib/infoPLCs.txt` or move it to `docs/` as a reference (sanitize if needed).
-- [ ] Ensure `inputReaderWebServer.ino` remains deleted.
-- [ ] Delete unused OTA UI strings from `HTMLUI.cpp` if they are no longer referenced.
-- [ ] Verify `pio run` succeeds and `pio check` (if available) is clean.
+- [x] Remove `lib/OTA_ESP32.txt` if fully superseded.
+- [x] Remove `lib/infoPLCs.txt` or move it to `docs/` as a reference (sanitize if needed).
+- [x] Ensure `inputReaderWebServer.ino` remains deleted.
+- [x] Delete unused OTA UI strings from `HTMLUI.cpp` if they are no longer referenced.
+- [x] Verify `pio run` succeeds and `pio check` (if available) is clean.
 
 ---
 
@@ -127,15 +127,21 @@ InputReaderModbus.ino
 - **Phase 4:** Completed — Web interface refactored to dashboard (`/`), config form (`/config`), and OTA info (`/update`); old JSON endpoints removed.
 - **Phase 5:** Completed — OTA integrated into `WifiWebServer` via `Update.h` and multipart upload.
 - **Phase 6:** Completed — No secrets in `src/` or `include/`; `.gitignore` added; `lib/infoPLCs.txt` sanitized and moved to `docs/legacy_device_reference.md`; `lib/OTA_ESP32.txt` deleted.
-- **Phase 7:** In Progress — Build verification pending (PlatformIO CLI not available in environment).
+- **Phase 7:** Completed — README added, repository cleaned, build verified.
+
+## Release
+
+- **v1.0.0** — First production release: stable dual-network Modbus TCP slave (Ethernet + WiFi), web dashboard/configuration/OTA, and Python HMI test tool.
 
 ## Phase 9: WiFi Modbus Stability
 - [x] Diagnose WiFi Modbus TCP drops (`connection reset by peer` / `errno 32`).
 - [x] Fix `ModbusTCPSlaveWiFi`:
+  - Reuse the accepted `WiFiClient` across multiple Modbus requests instead of relying on `WiFiServer::available()`, which on ESP32 only returns new connections.
   - Initialize `_lastRequestTime` when accepting a client.
   - Increase receive timeout from 1 s to 10 s to tolerate WiFi jitter.
   - Do **not** close the client socket on idle timeout; Modbus TCP masters expect persistent connections.
   - Detect client disconnect and return to `Idle` cleanly.
+  - Enable `TCP_NODELAY` and flush the response after writing.
 - [x] Keep `ModbusTCPSlave` (Ethernet) unchanged.
 
 **Verification:** WiFi Modbus connection remains stable under continuous HMI polling.
