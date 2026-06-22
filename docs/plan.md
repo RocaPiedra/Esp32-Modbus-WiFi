@@ -128,3 +128,16 @@ InputReaderModbus.ino
 - **Phase 5:** Completed — OTA integrated into `WifiWebServer` via `Update.h` and multipart upload.
 - **Phase 6:** Completed — No secrets in `src/` or `include/`; `.gitignore` added; `lib/infoPLCs.txt` sanitized and moved to `docs/legacy_device_reference.md`; `lib/OTA_ESP32.txt` deleted.
 - **Phase 7:** In Progress — Build verification pending (PlatformIO CLI not available in environment).
+
+## Phase 9: WiFi Modbus Stability
+- [x] Diagnose WiFi Modbus TCP drops (`connection reset by peer` / `errno 32`).
+- [x] Fix `ModbusTCPSlaveWiFi`:
+  - Initialize `_lastRequestTime` when accepting a client.
+  - Increase receive timeout from 1 s to 10 s to tolerate WiFi jitter.
+  - Do **not** close the client socket on idle timeout; Modbus TCP masters expect persistent connections.
+  - Detect client disconnect and return to `Idle` cleanly.
+- [x] Keep `ModbusTCPSlave` (Ethernet) unchanged.
+
+**Verification:** WiFi Modbus connection remains stable under continuous HMI polling.
+
+**Fallback noted:** If the native `ModbusTCPSlaveWiFi` still proves unstable, the `emelianov/modbus-esp8266` library (`ModbusTCP` class for ESP32) is a viable replacement candidate. It would require resolving header-name conflicts with `Industrial-Shields/arduino-Modbus` and validating against the Industrial Shields Ethernet interface.
