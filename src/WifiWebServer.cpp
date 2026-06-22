@@ -93,6 +93,7 @@ void WifiWebServer::setupRoutes() {
     server.on("/config", HTTP_POST, std::bind(&WifiWebServer::handleConfigPOST, this));
     server.on("/update", HTTP_GET, std::bind(&WifiWebServer::handleUpdateGET, this));
     server.on("/update", HTTP_POST, std::bind(&WifiWebServer::handleUpdatePOST, this), std::bind(&WifiWebServer::handleUpdateUpload, this));
+    server.on("/api/state", HTTP_GET, std::bind(&WifiWebServer::handleApiState, this));
     server.on("/coil", HTTP_GET, std::bind(&WifiWebServer::handleCoil, this));
 }
 
@@ -180,12 +181,30 @@ void WifiWebServer::handleUpdateUpload() {
 void WifiWebServer::handleCoil() {
     int idx = server.arg("idx").toInt();
     int val = server.arg("val").toInt();
+    bool ok = false;
     if (idx >= 0 && idx < numDigitalOutputs && val >= 0 && val <= 1) {
         digitalOutputs[idx] = (val == 1);
+        ok = true;
         if (Serial) {
             Serial.print("[WEB] Coil Q0_"); Serial.print(idx);
             Serial.print(" set to "); Serial.println(val ? "ON" : "OFF");
         }
     }
-    server.send(200, "text/plain", "OK");
+    String json = "{\"ok\":" + String(ok ? "true" : "false") + ",\"state\":" + String((idx >= 0 && idx < numDigitalOutputs && digitalOutputs[idx]) ? "true" : "false") + "}";
+    server.send(200, "application/json", json);
+}
+
+void WifiWebServer::handleApiState() {
+    String json = "{\"inputs\":[";
+    for (int i = 0; i < numDigitalInputs; i++) {
+        json += String(digitalInputs[i] ? "true" : "false");
+        if (i < numDigitalInputs - 1) json += ",";
+    }
+    json += "],\"outputs\":[";
+    for (int i = 0; i < numDigitalOutputs; i++) {
+        json += String(digitalOutputs[i] ? "true" : "false");
+        if (i < numDigitalOutputs - 1) json += ",";
+    }
+    json += "]}";
+    server.send(200, "application/json", json);
 }

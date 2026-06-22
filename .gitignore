@@ -4,3 +4,5 @@
 *~
 include/private_config.h
 data/
+__pycache__/
+*.pyc

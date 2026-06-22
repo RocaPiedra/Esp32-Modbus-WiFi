@@ -28,11 +28,13 @@ String createDashboardPage(const String& boardName, const String& interfaceName,
     ".btn{border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:0.8rem;color:#fff;transition:filter 0.15s;}"
     ".btn:hover{filter:brightness(1.2);}"
     ".btn-on{background:#b71c1c;} .btn-off{background:#1b5e20;}"
+    ".btn:disabled{opacity:0.5;cursor:wait;}"
     ".nav{display:flex;gap:10px;margin-top:12px;}"
     ".nav a{background:var(--card);border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:bold;text-transform:uppercase;transition:background 0.15s;}"
     ".nav a:hover{background:#2a3b45;}"
     ".status-line{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:0.8rem;font-family:monospace;color:#8d99ae;}"
     ".status-line span{display:flex;align-items:center;gap:4px;}"
+    ".error{color:var(--off);font-weight:bold;font-size:0.85rem;margin-bottom:8px;}"
     "</style></head><body>"
   );
 
@@ -42,45 +44,61 @@ String createDashboardPage(const String& boardName, const String& interfaceName,
   html += "<span>IP: " + ip + "</span>";
   html += "<span>Port: " + String(modbusPort) + "</span>";
   html += "</div>";
+  html += "<div id='err' class='error'></div>";
 
   html += "<div class='grid'>";
 
   html += "<div class='card'><h2>Digital Inputs</h2><table>";
-  html += "<thead><tr><th>Pin</th><th>State</th></tr></thead><tbody>";
+  html += "<thead><tr><th>Pin</th><th>State</th></tr></thead><tbody id='inputs-body'>";
   for (int i = 0; i < numDigitalInputs; i++) {
     bool on = digitalInputs[i];
-    html += "<tr><td>I0_" + String(i) + "</td><td><span class='led " + String(on ? "on" : "off") + "'></span><span class='val'>" + String(on ? "ON" : "OFF") + "</span></td></tr>";
+    html += "<tr data-idx='" + String(i) + "'><td>I0_" + String(i) + "</td><td><span class='led " + String(on ? "on" : "off") + "'></span><span class='val'>" + String(on ? "ON" : "OFF") + "</span></td></tr>";
   }
   html += "</tbody></table></div>";
 
   if (numDigitalOutputs > 0) {
-    html += "<div class='card'><h2>Digital Outputs</h2>";
+    html += "<div class='card'><h2>Digital Outputs</h2><div id='outputs-body'>";
     for (int i = 0; i < numDigitalOutputs; i++) {
       bool isOn = digitalOutputs[i];
       String btnClass = isOn ? "btn-on" : "btn-off";
       String btnText = isOn ? "TURN OFF" : "TURN ON";
       int targetVal = isOn ? 0 : 1;
-      html += "<div class='row'>";
+      html += "<div class='row' data-idx='" + String(i) + "'>";
       html += "<span><span class='led " + String(isOn ? "on" : "off") + "'></span>Q0_" + String(i) + " <span class='val'>" + String(isOn ? "ON" : "OFF") + "</span></span>";
-      html += "<button class='btn " + btnClass + "' onclick=\"setCoil(" + String(i) + "," + String(targetVal) + ")\">" + btnText + "</button>";
+      html += "<button class='btn " + btnClass + "' onclick=\"setCoil(this," + String(i) + "," + String(targetVal) + ")\">" + btnText + "</button>";
       html += "</div>";
     }
-    html += "</div>";
+    html += "</div></div>";
   }
 
   html += "</div>"; // close grid
 
   html += "<div class='nav'><a href='/config'>Configuration</a><a href='/update'>OTA Update</a></div>";
 
-  html += F(
-    "<script>"
-    "async function setCoil(idx,val){"
-    "await fetch('/coil?idx='+idx+'&val='+val);"
-    "location.reload();"
-    "}"
-    "setInterval(()=>location.reload(),2000);"
-    "</script></body></html>"
-  );
+  html += "<script>";
+  html += "function el(id){return document.getElementById(id);}";
+  html += "function setLed(el,on){el.className='led '+(on?'on':'off');}";
+  html += "async function setCoil(btn,idx,val){";
+  html += "btn.disabled=true;";
+  html += "try{const r=await fetch('/coil?idx='+idx+'&val='+val);const j=await r.json();if(!j.ok)throw new Error(j.error||'Write failed');updateRow(idx,j.state);}";
+  html += "catch(e){el('err').innerText='Coil write error: '+e.message;}";
+  html += "finally{btn.disabled=false;}";
+  html += "}";
+  html += "function updateRow(idx,state){";
+  html += "const row=document.querySelector(\"#outputs-body .row[data-idx='\"+idx+\"']\");if(!row)return;";
+  html += "const led=row.querySelector('.led');const val=row.querySelector('.val');const btn=row.querySelector('.btn');";
+  html += "setLed(led,state);val.innerText=state?'ON':'OFF';";
+  html += "btn.className='btn '+(state?'btn-on':'btn-off');btn.innerText=state?'TURN OFF':'TURN ON';";
+  html += "btn.setAttribute('onclick','setCoil(this,'+idx+','+(state?0:1)+')');";
+  html += "}";
+  html += "async function refreshState(){";
+  html += "try{const r=await fetch('/api/state');const j=await r.json();el('err').innerText='';";
+  html += "j.inputs.forEach((v,i)=>{const row=document.querySelector(\"#inputs-body tr[data-idx='\"+i+\"']\");if(row)setLed(row.querySelector('.led'),v);});";
+  html += "j.outputs.forEach((v,i)=>updateRow(i,v));}";
+  html += "catch(e){el('err').innerText='Refresh error: '+e.message;}";
+  html += "}";
+  html += "setInterval(refreshState,500);";
+  html += "</script></body></html>";
   return html;
 }
 
@@ -139,31 +157,44 @@ String createOTAFormPage() {
     "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
     "<title>OTA Update</title>"
     "<style>"
-    ":root{--bg:#0b0c10;--card:#1f2833;--text:#c5c6c7;--accent:#ffa500;--border:#45a29e;}"
+    ":root{--bg:#0b0c10;--card:#1f2833;--text:#c5c6c7;--accent:#ffa500;--on:#00e676;--off:#ff1744;--border:#45a29e;}"
     "*{box-sizing:border-box;margin:0;padding:0;}"
     "body{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);padding:12px;}"
     "h1{font-size:1.2rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--border);}"
-    ".card{background:var(--card);border:1px solid #2a3b45;border-radius:6px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:400px;}"
+    ".card{background:var(--card);border:1px solid #2a3b45;border-radius:6px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:420px;}"
     "input[type=file]{margin-top:8px;background:#0b0c10;border:1px solid #2a3b45;color:var(--text);padding:8px;border-radius:4px;width:100%;}"
     "button{background:#2a3b45;border:1px solid var(--border);color:var(--accent);padding:10px 18px;border-radius:4px;cursor:pointer;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-top:12px;transition:background 0.15s;}"
     "button:hover{background:var(--border);color:var(--bg);}"
-    "#status{margin-top:12px;font-family:monospace;color:var(--accent);}"
+    "button:disabled{opacity:0.5;cursor:not-allowed;}"
+    "#status{margin-top:12px;font-family:monospace;color:var(--accent);min-height:1.2em;}"
+    "#progress-wrap{margin-top:10px;display:none;background:#0b0c10;border:1px solid #2a3b45;border-radius:4px;height:18px;overflow:hidden;}"
+    "#progress-bar{height:100%;width:0%;background:var(--accent);transition:width 0.1s linear;}"
     ".nav{display:flex;gap:10px;margin-top:12px;}"
     ".nav a{background:var(--card);border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:4px;text-decoration:none;font-size:0.8rem;font-weight:bold;text-transform:uppercase;}"
     "</style></head><body>"
     "<h1>OTA Update</h1><div class='card'>"
-    "<input type='file' id='file'><br>"
-    "<button onclick='upload()'>Update</button>"
+    "<input type='file' id='file' accept='.bin'><br>"
+    "<button id='btn-up' onclick='upload()'>Update</button>"
+    "<div id='progress-wrap'><div id='progress-bar'></div></div>"
     "<p id='status'></p>"
     "</div><div class='nav'><a href='/'>Back to Dashboard</a></div><script>"
-    "async function upload(){"
-    "const f=document.getElementById('file').files[0];"
-    "if(!f)return;"
-    "document.getElementById('status').innerText='Uploading...';"
-    "const data=new FormData();data.append('update',f);"
-    "const r=await fetch('/update',{method:'POST',body:data});"
-    "document.getElementById('status').innerText=r.ok?'OK, rebooting...':'FAIL';"
-    "}</script></body></html>"
+    "function setStatus(t,c){const s=document.getElementById('status');s.innerText=t;s.style.color=c||'var(--accent)';}"
+    "function setProgress(p){document.getElementById('progress-bar').style.width=p+'%';document.getElementById('progress-wrap').style.display=p>0?'block':'none';}"
+    "function upload(){"
+    "const f=document.getElementById('file').files[0];if(!f){setStatus('Please select a .bin file','var(--off)');return;}"
+    "const btn=document.getElementById('btn-up');btn.disabled=true;setStatus('Uploading '+f.name+' ...');setProgress(0);"
+    "const fd=new FormData();fd.append('update',f);"
+    "const xhr=new XMLHttpRequest();"
+    "xhr.upload.addEventListener('progress',e=>{if(e.lengthComputable){const p=Math.round(100*e.loaded/e.total);setProgress(p);setStatus('Uploading '+p+'% ('+e.loaded+' / '+e.total+' bytes)');}});"
+    "xhr.upload.addEventListener('load',()=>{setStatus('Upload complete. Flashing firmware... Do not power off.');setProgress(100);});"
+    "xhr.addEventListener('load',()=>{"
+    "if(xhr.status===200){setStatus('Update successful. Rebooting... Please wait ~15 seconds, then refresh the page.','var(--on)');let n=15;const iv=setInterval(()=>{n--;setStatus('Update successful. Rebooting... please wait '+n+'s.','var(--on)');if(n<=0)clearInterval(iv);},1000);}"
+    "else{setStatus('Update failed: HTTP '+xhr.status+' - '+xhr.responseText,'var(--off)');btn.disabled=false;}"
+    "});"
+    "xhr.addEventListener('error',()=>{setStatus('Upload failed: network error','var(--off)');btn.disabled=false;});"
+    "xhr.open('POST','/update');xhr.send(fd);"
+    "}"
+    "</script></body></html>"
   );
 }
 

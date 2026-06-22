@@ -111,7 +111,7 @@ def scan_subnet(iface_ip, netmask, port=502, max_workers=50):
 
 
 def create_modbus_client(host, port, source_ip=None):
-    kwargs = {"host": host, "port": port, "timeout": 5}
+    kwargs = {"host": host, "port": port, "timeout": 1}
     if source_ip:
         kwargs["source_address"] = (source_ip, 0)
     return ModbusTcpClient(**kwargs)
@@ -125,7 +125,7 @@ def is_socket_error(e):
 def poll_plc():
     global client
     while True:
-        time.sleep(1)
+        time.sleep(0.2)
         with client_lock:
             c = client
             if c is None:
@@ -338,7 +338,7 @@ HTML_PAGE = """
                 const btnClass = val ? 'btn-on' : 'btn-off';
                 const btnText = val ? 'TURN OFF' : 'TURN ON';
                 const targetVal = val ? 0 : 1;
-                row.innerHTML = `<span><span class="led ${val ? 'on' : 'off'}"></span>Q0_${i} <span class="val">${val ? 'ON' : 'OFF'}</span></span><button class="btn ${btnClass}" onclick="toggleCoil(${i},${targetVal})">${btnText}</button>`;
+                row.innerHTML = `<span><span class="led ${val ? 'on' : 'off'}"></span>Q0_${i} <span class="val">${val ? 'ON' : 'OFF'}</span></span><button class="btn ${btnClass}" onclick="toggleCoil(this,${i},${targetVal})">${btnText}</button>`;
                 coilList.appendChild(row);
             });
 
@@ -420,18 +420,35 @@ HTML_PAGE = """
             catch (e) { console.error('Disconnect failed', e); }
         }
 
-        async function toggleCoil(index, value) {
-            const res = await fetch('/api/coil', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ index: index, value: value })
-            });
-            const data = await res.json();
-            if (!data.ok) { alert('Write failed: ' + (data.error || 'Unknown error')); }
-            fetchData();
+        async function toggleCoil(btn, index, value) {
+            btn.disabled = true;
+            btn.innerText = '...';
+            // Optimistic update
+            if (currentState.coils && index < currentState.coils.length) {
+                currentState.coils[index] = Boolean(value);
+                updateUI(currentState);
+            }
+            try {
+                const res = await fetch('/api/coil', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ index: index, value: value })
+                });
+                const data = await res.json();
+                if (!data.ok) {
+                    document.getElementById('error-msg').innerText = 'Write failed: ' + (data.error || 'Unknown error');
+                } else if (data.coils) {
+                    currentState.coils = data.coils;
+                    updateUI(currentState);
+                }
+            } catch (e) {
+                document.getElementById('error-msg').innerText = 'Write error: ' + e;
+            } finally {
+                btn.disabled = false;
+            }
         }
 
-        setInterval(fetchData, 1000);
+        setInterval(fetchData, 250);
         loadInterfaces();
         fetchData();
     </script>
@@ -556,7 +573,6 @@ def api_coil():
                     state["last_error"] = "Write coil failed"
                 return jsonify({"ok": False, "error": "Write coil failed"})
 
-            # Read back immediately so UI reflects the change
             coil_count = max(1, state["num_coils"])
             coil_result = c.read_coils(address=0, count=coil_count)
             with poll_lock:
@@ -565,7 +581,7 @@ def api_coil():
                     state["last_error"] = ""
                 else:
                     state["last_error"] = "Write OK but read-back failed"
-            return jsonify({"ok": True})
+            return jsonify({"ok": True, "coils": state["coils"]})
         except Exception as e:
             with poll_lock:
                 state["last_error"] = str(e)

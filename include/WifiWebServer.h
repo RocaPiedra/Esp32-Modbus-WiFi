@@ -48,6 +48,7 @@ private:
   void handleUpdateGET();
   void handleUpdatePOST();
   void handleUpdateUpload();
+  void handleApiState();
   void handleCoil();
 };
 

@@ -45,6 +45,7 @@ private:
     void handleConfigGET();
     void handleConfigPOST(const String& body);
     void handleUpdateGET();
+    void handleApiState();
     void handleCoil(const String& query);
     void handleNotFound(const String& url);
 };

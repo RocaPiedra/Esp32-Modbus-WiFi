@@ -120,13 +120,29 @@ void EthernetWebServer::configureEthernetMAC() {
     }
 }
 
+static void writeAll(EthernetClient& client, const uint8_t* data, size_t len) {
+    size_t sent = 0;
+    while (sent < len && client.connected()) {
+        size_t chunk = client.write(data + sent, len - sent);
+        if (chunk == 0) {
+            delay(1);
+            continue;
+        }
+        sent += chunk;
+    }
+}
+
 void EthernetWebServer::sendResponse(int code, const String& contentType, const String& body) {
     if (!client.connected()) return;
-    client.println("HTTP/1.1 " + String(code) + " OK");
-    client.println("Content-Type: " + contentType);
-    client.println("Connection: close");
-    client.println();
-    client.print(body);
+    String header = "HTTP/1.1 " + String(code) + " OK\r\n" +
+                    "Content-Type: " + contentType + "\r\n" +
+                    "Content-Length: " + String(body.length()) + "\r\n" +
+                    "Connection: close\r\n\r\n";
+    writeAll(client, (const uint8_t*)header.c_str(), header.length());
+    if (body.length() > 0) {
+        writeAll(client, (const uint8_t*)body.c_str(), body.length());
+    }
+    client.flush();
 }
 
 void EthernetWebServer::handleRoot() {
@@ -206,14 +222,32 @@ void EthernetWebServer::handleCoil(const String& query) {
     int i2 = query.indexOf("val=");
     if (i1 >= 0) idx = query.substring(i1 + 4).toInt();
     if (i2 >= 0) val = query.substring(i2 + 4).toInt();
+    bool ok = false;
     if (idx >= 0 && idx < numDigitalOutputs && val >= 0 && val <= 1) {
         digitalOutputs[idx] = (val == 1);
+        ok = true;
         if (Serial) {
             Serial.print("[WEB] Coil Q0_"); Serial.print(idx);
             Serial.print(" set to "); Serial.println(val ? "ON" : "OFF");
         }
     }
-    sendResponse(200, "text/plain", "OK");
+    String json = "{\"ok\":" + String(ok ? "true" : "false") + ",\"state\":" + String(digitalOutputs[idx] ? "true" : "false") + "}";
+    sendResponse(200, "application/json", json);
+}
+
+void EthernetWebServer::handleApiState() {
+    String json = "{\"inputs\":[";
+    for (int i = 0; i < numDigitalInputs; i++) {
+        json += String(digitalInputs[i] ? "true" : "false");
+        if (i < numDigitalInputs - 1) json += ",";
+    }
+    json += "],\"outputs\":[";
+    for (int i = 0; i < numDigitalOutputs; i++) {
+        json += String(digitalOutputs[i] ? "true" : "false");
+        if (i < numDigitalOutputs - 1) json += ",";
+    }
+    json += "]}";
+    sendResponse(200, "application/json", json);
 }
 
 void EthernetWebServer::handleNotFound(const String& url) {
@@ -272,6 +306,7 @@ void EthernetWebServer::handleClient(bool verbose) {
     else if (method == "GET" && path == "/config") handleConfigGET();
     else if (method == "POST" && path == "/config") handleConfigPOST(body);
     else if (method == "GET" && path == "/update") handleUpdateGET();
+    else if (method == "GET" && path == "/api/state") handleApiState();
     else if (method == "GET" && path.startsWith("/coil")) handleCoil(path.substring(5));
     else handleNotFound(path);
     
