@@ -171,6 +171,8 @@ void setup() {
 }
 
 static unsigned long lastDebugPrint = 0;
+static unsigned long lastLinkCheck = 0;
+static int fallbackCounter = 0;
 
 void loop() {
   for (int i = 0; i < numDigitalInputs; ++i) {
@@ -201,7 +203,9 @@ void loop() {
     }
     Serial.println();
     Serial.print("[LOOP] Active interface: ");
-    Serial.println(useEthernet ? "Ethernet" : "WiFi");
+    Serial.print(useEthernet ? "Ethernet" : "WiFi");
+    Serial.print(" IP: ");
+    Serial.println(useEthernet ? config.eth_ip.toString() : config.wifi_ip.toString());
     Serial.print("[LOOP] Coils -> ");
     for (int i = 0; i < numDigitalOutputs; ++i) {
       Serial.print("Q0_"); Serial.print(i); Serial.print(":"); Serial.print(digitalOutputs[i] ? "ON" : "OFF");
@@ -215,36 +219,68 @@ void loop() {
   }
 
   if (activeWebServer) {
-    if (!activeWebServer->checkConnection(false)) {
-      Serial.println("[NET] Connection lost, attempting fallback...");
-      bool connected = false;
-      if (useEthernet) {
-        if (wifiWebServer.checkConnection(true)) {
-          activeWebServer = &wifiWebServer;
-          activeModbus = &modbusWifi;
-          useEthernet = false;
-          modbusWifi.begin();
-          Serial.println("[NET] >>> Switched to WiFi <<<");
-          connected = true;
+    activeWebServer->handleClient();
+
+    // Only test the active link every 5 s to avoid flooding the network with pings.
+    if (millis() - lastLinkCheck >= 5000) {
+      lastLinkCheck = millis();
+      bool linkOk = activeWebServer->checkConnection(false);
+      if (!linkOk) {
+        Serial.println("[NET] Active link down, attempting recovery...");
+        bool connected = false;
+
+        if (useEthernet) {
+          // Currently on Ethernet: try WiFi first.
+          if (wifiWebServer.checkConnection(true)) {
+            activeWebServer = &wifiWebServer;
+            activeModbus = &modbusWifi;
+            useEthernet = false;
+            modbusWifi.begin();
+            Serial.println("[NET] >>> Switched to WiFi <<<");
+            connected = true;
+          }
+
+          // If WiFi is not available, retry Ethernet (cable may have been reconnected).
+          if (!connected && ethWebServer.checkConnection(true)) {
+            modbusEth.begin();
+            Serial.println("[NET] >>> Ethernet reconnected <<<");
+            connected = true;
+          }
+        } else {
+          // Currently on WiFi: only switch to Ethernet if the cable is physically
+          // connected. If not, keep trying to reconnect to WiFi.
+          if (ethWebServer.cableConnected(false) && ethWebServer.checkConnection(true)) {
+            activeWebServer = &ethWebServer;
+            activeModbus = &modbusEth;
+            useEthernet = true;
+            modbusEth.begin();
+            Serial.println("[NET] >>> Switched to Ethernet <<<");
+            connected = true;
+          }
+
+          if (!connected && wifiWebServer.checkConnection(true)) {
+            modbusWifi.begin();
+            Serial.println("[NET] >>> WiFi reconnected <<<");
+            connected = true;
+          }
+        }
+
+        if (connected) {
+          fallbackCounter = 0;
+        } else {
+          fallbackCounter++;
+          Serial.printf("[NET] Recovery attempt %d failed\n", fallbackCounter);
+          if (fallbackCounter >= 10) {
+            Serial.println("[NET] No connection available after 10 attempts, restarting...");
+            delay(1000);
+            ESP.restart();
+            return;
+          }
         }
       } else {
-        if (ethWebServer.checkConnection(true)) {
-          activeWebServer = &ethWebServer;
-          activeModbus = &modbusEth;
-          useEthernet = true;
-          modbusEth.begin();
-          Serial.println("[NET] >>> Switched to Ethernet <<<");
-          connected = true;
-        }
-      }
-      if (!connected) {
-        Serial.println("[NET] No connection available, restarting...");
-        delay(1000);
-        ESP.restart();
-        return;
+        fallbackCounter = 0;
       }
     }
-    activeWebServer->handleClient();
   }
 
   // Small delay to let the network stack drain buffers and avoid tight-loop issues.

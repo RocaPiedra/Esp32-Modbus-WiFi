@@ -7,3 +7,4 @@ include/config/
 data/
 __pycache__/
 *.pyc
+docs/infoPLCs.txt
