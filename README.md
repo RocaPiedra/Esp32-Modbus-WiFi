@@ -190,6 +190,7 @@ At boot the firmware tries Ethernet first. If Ethernet is unreachable it falls b
 
 Releases follow [Semantic Versioning](https://semver.org/).
 
+- **v1.0.1** — Stable WiFi Modbus TCP with client-reuse fix, `TCP_NODELAY`, network fallback (cable-detection-based, not ping-based), OTA progress bar, dashboard AJAX polling, and Ethernet response chunking.
 - **v1.0.0** — First production release with stable dual-network Modbus TCP slave (Ethernet + WiFi), web dashboard, configuration UI, OTA updates, and HMI test tool.
 
 ---
