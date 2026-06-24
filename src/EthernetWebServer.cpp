@@ -102,7 +102,7 @@ bool EthernetWebServer::checkConnection(bool verbose) {
     if (verbose && Serial) {
         Serial.println(String("Gateway ping (advisory): ") + (ping_ok ? "Success" : "Failed"));
     }
-    return ping_ok;
+    return true;
 }
 
 void EthernetWebServer::configureEthernetMAC() {

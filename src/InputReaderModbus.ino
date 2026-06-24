@@ -202,6 +202,7 @@ void loop() {
       if (i < numDigitalInputs - 1) Serial.print(", ");
     }
     Serial.println();
+    
     Serial.print("[LOOP] Active interface: ");
     Serial.print(useEthernet ? "Ethernet" : "WiFi");
     Serial.print(" IP: ");
